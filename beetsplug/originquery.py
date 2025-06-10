@@ -1,14 +1,14 @@
 import confuse
 import glob
 import json
-import jsonpath_rw
+from jsonpath_ng import parse
 import os
 import re
 import sys
 import yaml
 from collections import OrderedDict
 from beets import config, ui
-from beets.autotag.match import current_metadata
+from beets.util import get_most_common_tags as current_metadata
 from beets.plugins import BeetsPlugin
 from pathlib import Path
 
@@ -98,7 +98,7 @@ class OriginQuery(BeetsPlugin):
 
             if origin_type == 'json' or origin_type == 'yaml':
                 try:
-                    self.tag_patterns[key] = jsonpath_rw.parse(pattern)
+                    self.tag_patterns[key] = parse(pattern)
                 except Exception as e:
                     return fail('Config error: invalid tag pattern for "{0}". "{1}" is not a valid JSON path ({2}).'
                                 .format(key, pattern, format(str(e))))
@@ -268,8 +268,7 @@ class OriginQuery(BeetsPlugin):
 
                 # beets weighs media heavily, and will even prioritize a media match over an exact catalognum match.
                 # At the same time, media for uploaded music is often mislabeled (e.g., Enhanced CD and SACD are just
-                # grouped as CD). This does not make a good combination. As a workaround, remove the media from the
-                # item if we also have a catalognum.
+                # grouped as CD). This does not make a good combination. As a workaround, lower the weight for media
+                # if we also have a catalognum.
                 if item['media'] and item['catalognum']:
-                    del item['media']
-                    tag_compare['media']['active'] = False
+                    config['match']['distance_weights']['media'] = .2
